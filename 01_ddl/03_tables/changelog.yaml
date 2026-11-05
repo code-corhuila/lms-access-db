@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: ddl-tables-001
+      author: OscarAreiza
+      labels: "HU-01,ddl,tables"
+      comment: "administrator: the Access aggregate root. No foreign keys here (none needed)."
+      changes:
+        - sqlFile:
+            path: 001_create_administrator_table.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+      rollback:
+        - sqlFile:
+            path: ../../05_rollbacks/01_ddl/03_tables/001_create_administrator_table.rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: false
