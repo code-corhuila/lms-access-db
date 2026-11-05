@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: ddl-extensions-001
+      author: OscarAreiza
+      labels: "governance,ddl,extensions"
+      comment: "pgcrypto: gen_random_uuid() for every table's primary key default"
+      changes:
+        - sqlFile:
+            path: 001_enable_pgcrypto.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+      rollback:
+        - sqlFile:
+            path: ../../05_rollbacks/01_ddl/00_extensions/001_enable_pgcrypto.rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: false
