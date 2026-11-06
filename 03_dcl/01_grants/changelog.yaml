@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - changeSet:
+      id: dcl-grants-001
+      author: OscarAreiza
+      labels: "governance,dcl,grants"
+      comment: "reader gets SELECT only; writer gets SELECT/INSERT/UPDATE, no DELETE"
+      changes:
+        - sqlFile:
+            path: 001_grants.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+      rollback:
+        - sqlFile:
+            path: ../../05_rollbacks/03_dcl/01_grants/001_grants.rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+  - changeSet:
+      id: dcl-grants-002
+      author: OscarAreiza
+      labels: "governance,dcl,grants"
+      comment: "ties access_writer to access_app — rules/3-Anexo-J, J.7"
+      changes:
+        - sqlFile:
+            path: 002_grant_writer_to_app_user.sql
+            relativeToChangelogFile: true
+            splitStatements: false
+      rollback:
+        - sqlFile:
+            path: ../../05_rollbacks/03_dcl/01_grants/002_grant_writer_to_app_user.rollback.sql
+            relativeToChangelogFile: true
+            splitStatements: false
