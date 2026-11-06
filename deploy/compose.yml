@@ -1,0 +1,36 @@
+# This domain's Liquibase migration executor only — no database service, no
+# volume. The single PostgreSQL instance this applies to is owned by
+# lms-infra-postgres (rules/3-Anexo-J, J.3.1), which `include:`s this file
+# (ADR-006-repo-per-context-decomposition.md). PG_ADMIN_USER/PASSWORD here
+# are the instance administrator's, used only to run migrations — the
+# running -api never connects as this user (it uses access_app, created
+# by lms-infra-postgres's own init script).
+services:
+  access-migrate:
+    image: liquibase/liquibase:4.29
+    container_name: access-migrate
+    environment:
+      # Liquibase's own `${VAR}` substitution inside liquibase.properties
+      # does not work (tested directly — it passes the literal string
+      # "${PG_ADMIN_USER}" to the driver instead of substituting). These
+      # LIQUIBASE_COMMAND_* variables are Liquibase's documented env-var
+      # configuration mechanism instead; liquibase.properties only carries
+      # changelogFile and the per-domain changelog-table names now.
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/${PG_DATABASE:-lms_db}
+      LIQUIBASE_COMMAND_USERNAME: ${PG_ADMIN_USER:-lms_admin}
+      LIQUIBASE_COMMAND_PASSWORD: ${PG_ADMIN_PASSWORD:-change-me-admin-password}
+    volumes:
+      - ..:/liquibase/changelog
+    working_dir: /liquibase/changelog
+    command:
+      - "--defaultsFile=/liquibase/changelog/deploy/liquibase.properties"
+      - "update"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - platform
+
+networks:
+  platform:
+    external: true
