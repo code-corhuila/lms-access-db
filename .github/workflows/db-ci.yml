@@ -26,6 +26,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create the access_app login user (lms-infra-postgres creates it in real environments)
+        env:
+          PGPASSWORD: lms_password
+        run: psql -h localhost -U lms_user -d access_db -c "CREATE ROLE access_app LOGIN PASSWORD 'ci-only-password'"
+
       - name: Liquibase update — build from empty
         run: |
           docker run --rm --network host \
