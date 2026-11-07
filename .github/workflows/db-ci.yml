@@ -36,17 +36,24 @@ jobs:
           docker run --rm --network host \
             -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
             liquibase/liquibase:4.29 \
-            --changelog-file=changelog/changelog-master.yaml \
+            --defaults-file=deploy/liquibase.properties \
             --url=jdbc:postgresql://localhost:5432/access_db \
             --username=lms_user --password=lms_password \
             update
+
+      - name: Check the per-domain changelog tables (Anexo J, J.6)
+        env:
+          PGPASSWORD: lms_password
+        run: |
+          n=$(psql -h localhost -U lms_user -d access_db -tAc "select count(*) from pg_tables where tablename in ('databasechangelog_access','databasechangeloglock_access')")
+          test "$n" = "2" || { echo "expected databasechangelog_access and databasechangeloglock_access, found $n"; exit 1; }
 
       - name: Liquibase update again — must apply zero changesets
         run: |
           out=$(docker run --rm --network host \
             -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
             liquibase/liquibase:4.29 \
-            --changelog-file=changelog/changelog-master.yaml \
+            --defaults-file=deploy/liquibase.properties \
             --url=jdbc:postgresql://localhost:5432/access_db \
             --username=lms_user --password=lms_password \
             update)
@@ -60,7 +67,7 @@ jobs:
           docker run --rm --network host \
             -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
             liquibase/liquibase:4.29 \
-            --changelog-file=changelog/changelog-master.yaml \
+            --defaults-file=deploy/liquibase.properties \
             --url=jdbc:postgresql://localhost:5432/access_db \
             --username=lms_user --password=lms_password \
             rollback-count 999
@@ -70,7 +77,7 @@ jobs:
           docker run --rm --network host \
             -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
             liquibase/liquibase:4.29 \
-            --changelog-file=changelog/changelog-master.yaml \
+            --defaults-file=deploy/liquibase.properties \
             --url=jdbc:postgresql://localhost:5432/access_db \
             --username=lms_user --password=lms_password \
             update
