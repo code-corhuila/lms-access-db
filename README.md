@@ -75,7 +75,7 @@ docker exec access-pg psql -U lms_user -d access_db \
 
 lb() {
   docker run --rm --network access-check -v "$PWD:/liquibase/changelog" -w /liquibase/changelog \
-    liquibase/liquibase:4.29 --changelog-file=changelog/changelog-master.yaml \
+    liquibase/liquibase:4.29 --defaults-file=deploy/liquibase.properties \
     --url=jdbc:postgresql://access-pg:5432/access_db --username=lms_user --password=lms_password "$@"
 }
 lb update               # builds from empty
@@ -87,6 +87,8 @@ docker rm -f access-pg && docker network rm access-check
 ```
 
 Wait a few seconds after starting `access-pg` so PostgreSQL is ready before the first command.
+
+Liquibase reads `deploy/liquibase.properties`, so it tracks this domain's migrations in `databasechangelog_access` and `databasechangeloglock_access`, the same as on the shared instance.
 
 ## Delivered in
 
