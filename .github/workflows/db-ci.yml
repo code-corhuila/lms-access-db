@@ -1,0 +1,83 @@
+name: db-ci
+on:
+  pull_request:
+    branches: [develop, qa, main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reconstruction:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lms_user
+          POSTGRES_PASSWORD: lms_password
+          POSTGRES_DB: access_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lms_user -d access_db"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create the access_app login user (lms-infra-postgres creates it in real environments)
+        env:
+          PGPASSWORD: lms_password
+        run: psql -h localhost -U lms_user -d access_db -c "CREATE ROLE access_app LOGIN PASSWORD 'ci-only-password'"
+
+      - name: Liquibase update — build from empty
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
+            liquibase/liquibase:4.29 \
+            --defaults-file=deploy/liquibase.properties \
+            --url=jdbc:postgresql://localhost:5432/access_db \
+            --username=lms_user --password=lms_password \
+            update
+
+      - name: Check the per-domain changelog tables (Anexo J, J.6)
+        env:
+          PGPASSWORD: lms_password
+        run: |
+          n=$(psql -h localhost -U lms_user -d access_db -tAc "select count(*) from pg_tables where tablename in ('databasechangelog_access','databasechangeloglock_access')")
+          test "$n" = "2" || { echo "expected databasechangelog_access and databasechangeloglock_access, found $n"; exit 1; }
+
+      - name: Liquibase update again — must apply zero changesets
+        run: |
+          out=$(docker run --rm --network host \
+            -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
+            liquibase/liquibase:4.29 \
+            --defaults-file=deploy/liquibase.properties \
+            --url=jdbc:postgresql://localhost:5432/access_db \
+            --username=lms_user --password=lms_password \
+            update)
+          echo "$out"
+          echo "$out" | grep -q "0 changesets have not been applied\|Run:  *0" || {
+            echo "second update was not a no-op"; exit 1;
+          }
+
+      - name: Liquibase rollback — full teardown
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
+            liquibase/liquibase:4.29 \
+            --defaults-file=deploy/liquibase.properties \
+            --url=jdbc:postgresql://localhost:5432/access_db \
+            --username=lms_user --password=lms_password \
+            rollback-count 999
+
+      - name: Liquibase update — rebuild after rollback
+        run: |
+          docker run --rm --network host \
+            -v "${{ github.workspace }}:/liquibase/changelog" -w /liquibase/changelog \
+            liquibase/liquibase:4.29 \
+            --defaults-file=deploy/liquibase.properties \
+            --url=jdbc:postgresql://localhost:5432/access_db \
+            --username=lms_user --password=lms_password \
+            update
